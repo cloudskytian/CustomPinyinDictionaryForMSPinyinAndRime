@@ -1,0 +1,35 @@
+name: CustomPinyinDictionaryForRimeAndMSPinyin
+
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+    - name: run
+      run: |
+        curl -L -O https://github.com/wuhgit/CustomPinyinDictionary/releases/download/assets/CustomPinyinDictionary_Fcitx_20250101.tar.gz
+        tar -xzf CustomPinyinDictionary_Fcitx_20250101.tar.gz
+        sudo apt-get install libime-bin
+        libime_pinyindict -d CustomPinyinDictionary_Fcitx.dict CustomPinyinDictionary_libimetxt.txt
+        curl -L -O https://github.com/studyzy/imewlconverter/releases/latest/download/imewlconverter_Linux.tar.gz
+        tar -xzf imewlconverter_Linux.tar.gz
+        dotnet publish/ImeWlConverterCmd.dll -i:libimetxt CustomPinyinDictionary_libimetxt.txt -o:rime CustomPinyinDictionary_rime.yaml
+        dotnet publish/ImeWlConverterCmd.dll -i:libimetxt CustomPinyinDictionary_libimetxt.txt -o:win10mspy CustomPinyinDictionary_win10mspy.dat
+        mkdir convert_result
+        mv CustomPinyinDictionary_libimetxt.txt convert_result/CustomPinyinDictionary_libimetxt.txt
+        mv CustomPinyinDictionary_rime.yaml convert_result/CustomPinyinDictionary_rime.dict.yaml
+        mv publish/Win10微软拼音词库.dat convert_result/win10mspy.dat
+        ls -l
+        ls -l publish
+    - name: Commit And Push
+      env:
+        GH_TOKEN: ${{secrets.GH_TOKEN}}
+      run: |
+        timestamp=$(date "+%Y%m%d%H%M%S")
+        gh release create $timestamp convert_result/*
